@@ -2,11 +2,45 @@ import { request, Notice, Vault, htmlToMarkdown, Platform } from "obsidian";
 import { DateTime } from "luxon";
 import { RSSParser } from "./RSSParser";
 import * as DOMPurify from "isomorphic-dompurify";
-import { Readability} from "@mozilla/readability";
+import { Readability } from "@mozilla/readability";
 
 function convertToValidFilename(string: string): string {
 	// eslint-disable-next-line no-useless-escape
 	return string.replace(/[\/|\\:*?"<>]/g, " ");
+}
+
+const RSS_FORMATS = [
+	DateTime.fromRFC2822,
+	DateTime.fromHTTP, // covers RFC 1123 / RFC 850 / asctime
+	DateTime.fromISO,
+	DateTime.fromSQL,
+];
+
+export function parsePubDate(raw?: string) {
+	if (!raw) return null;
+
+	const s = raw.trim();
+
+	let dt;
+
+	for (const fn of RSS_FORMATS) {
+		dt = fn(s, { setZone: true });
+		if (dt.isValid) return dt.toISODate();
+	}
+
+	// Common RSS fallback: "Thu, 27 Nov 2025 17:17:07 +0000"
+	dt = DateTime.fromFormat(s, "EEE, dd LLL yyyy HH:mm:ss ZZZ", { setZone: true });
+	if (dt.isValid) return dt.toISODate();
+
+	// Another common variant with GMT
+	dt = DateTime.fromFormat(s, "EEE, dd LLL yyyy HH:mm:ss 'GMT'", { zone: "UTC" });
+	if (dt.isValid) return dt.toISODate();
+
+	// Last resort: native Date parse
+	const js = new Date(s);
+	if (!Number.isNaN(js.getTime())) return DateTime.fromJSDate(js, { zone: "utc" }).toISODate();
+
+	return s;
 }
 
 export default class FeedsFolder {
@@ -22,7 +56,7 @@ export default class FeedsFolder {
 		feedUrl: string,
 		template: string,
 		newestNum: number,
-		loadWebpageText: boolean
+		loadWebpageText: boolean,
 	): Promise<void> {
 		if (!newestNum) {
 			newestNum = 5;
@@ -33,7 +67,7 @@ export default class FeedsFolder {
 		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		content.items.slice(0, newestNum).forEach(async (item: any) => {
 			let mdcontent = htmlToMarkdown(item.content);
-			if(loadWebpageText){
+			if (loadWebpageText) {
 				mdcontent = await this.loadWebpageText(item.link);
 			}
 			const images = mdcontent.match(/!\[.*?\]\((.*?)\)/) ?? ["", ""];
@@ -64,7 +98,7 @@ export default class FeedsFolder {
 		}
 	}
 
-	async loadWebpageText(url:string){
+	async loadWebpageText(url: string) {
 		// the code is from https://github.com/DominikPieper/obsidian-ReadItLater/blob/master/src/parsers/WebsiteParser.ts
 		const link = new URL(url);
 		const response = await request({ method: "GET", url: link.href });
@@ -96,6 +130,6 @@ export default class FeedsFolder {
 			.replaceAll("{{item.content}}", htmlToMarkdown(item.content) ?? "")
 			.replaceAll("{{item.author}}", item.author ?? "")
 			.replaceAll("{{item.link}}", item.link ?? "")
-			.replaceAll("{{item.pubDate}}", DateTime.fromHTTP(item.pubDate).toISODate() ?? "");
+			.replaceAll("{{item.pubDate}}", parsePubDate(item.pubDate) ?? "");
 	}
 }

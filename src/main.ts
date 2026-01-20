@@ -26,6 +26,13 @@ export default class RSSCopyistPlugin extends Plugin {
 				return true;
 			},
 		});
+		this.addRibbonIcon("list-restart", "Get the newest articles from all feeds", () => {
+			const files = getNotesWithTag(this.app, this.settings.tag);
+			files.forEach(async (file) => {
+				const folder = await this.getFeedFolder(file);
+				await this.parseFeed(folder);
+			});
+		});
 		this.addCommand({
 			id: "get-all-feeds",
 			name: "Get the newest articles from all feeds",
@@ -44,7 +51,7 @@ export default class RSSCopyistPlugin extends Plugin {
 				const files = getNotesWithTag(this.app, this.settings.tag);
 				for (const file of files) {
 					const folder = await this.getFeedFolder(file);
-					await this.app.vault.delete(folder,true);
+					await this.app.vault.delete(folder, true);
 				}
 			},
 		});
@@ -78,14 +85,14 @@ export default class RSSCopyistPlugin extends Plugin {
 				feedMetadata?.["url"],
 				template,
 				parseInt(feedMetadata?.["newestNum"]),
-				this.settings.loadWebpageText
+				this.settings.loadWebpageText,
 			);
 		}
 	}
 
 	getFeedMetadata(folder: TFolder) {
 		const result = this.app.vault.getAbstractFileByPath(
-			folder.parent.path + "/" + folder.name + ".md"
+			folder.parent.path + "/" + folder.name + ".md",
 		);
 		if (result instanceof TFile) {
 			return this.app.metadataCache.getFileCache(result)?.frontmatter;

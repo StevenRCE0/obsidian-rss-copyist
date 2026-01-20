@@ -6,7 +6,7 @@ export class RSSParser {
 		const items = result.elements
 			.filter((e) => e.name == "rss" || e.name == "feed")[0]
 			.elements[0].elements.filter(
-				(element) => element.name == "item" || element.name == "entry"
+				(element) => element.name == "item" || element.name == "entry",
 			);
 
 		const itemsResults = [];
