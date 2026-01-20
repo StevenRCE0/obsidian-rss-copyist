@@ -30,7 +30,7 @@ export default class RSSCopyistPlugin extends Plugin {
 			id: "get-all-feeds",
 			name: "Get the newest articles from all feeds",
 			callback: async () => {
-				const files = getNotesWithTag(this.app, "feed");
+				const files = getNotesWithTag(this.app, this.settings.tag);
 				files.forEach(async (file) => {
 					const folder = await this.getFeedFolder(file);
 					await this.parseFeed(folder);
